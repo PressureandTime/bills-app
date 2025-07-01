@@ -18,6 +18,7 @@ Data is sourced from the official Oireachtas API.
 - **Material UI** - Component library for consistent design
 - **Vite** - Build tool and development server
 - **Vitest + React Testing Library** - Unit testing framework
+- **Playwright** - End-to-end testing across browsers
 - **ESLint + Prettier** - Code linting and formatting
 
 API integration with the [Irish Oireachtas API](https://api.oireachtas.ie/).
@@ -49,6 +50,7 @@ Open your browser to `http://localhost:5173`
 | `npm run preview`         | Preview production build       |
 | `npm run test`            | Run unit tests                 |
 | `npm run test:coverage`   | Run tests with coverage report |
+| `npm run setup:e2e`       | Install Playwright browsers    |
 | `npm run test:e2e`        | Run Playwright e2e tests       |
 | `npm run test:e2e:ui`     | Run Playwright tests with UI   |
 | `npm run test:e2e:report` | View Playwright test report    |
@@ -182,6 +184,14 @@ The e2e tests cover:
 - **Accessibility** - Using @axe-core/playwright for a11y testing
 
 ### Running Tests
+
+First-time setup (installs browser binaries):
+
+```bash
+npm run setup:e2e
+```
+
+Then run tests:
 
 ```bash
 # Run all e2e tests (headless mode)
