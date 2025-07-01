@@ -1,4 +1,3 @@
-
 import type {
   BillsApiResponse,
   BillsApiParams,
@@ -8,7 +7,6 @@ import type {
   BillResult,
   BillTitle,
 } from '../types/bills';
-
 
 const API_CONFIG: ApiConfig = {
   baseUrl: 'https://api.oireachtas.ie/v1/legislation',
@@ -34,11 +32,9 @@ export class BillsApiError extends Error {
 function buildParams(params: BillsApiParams): URLSearchParams {
   const urlParams = new URLSearchParams();
 
-
   Object.entries(API_CONFIG.defaultParams).forEach(([key, value]) => {
     urlParams.set(key, value);
   });
-
 
   const isValidDate = (dateString: string): boolean => {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,10 +43,7 @@ function buildParams(params: BillsApiParams): URLSearchParams {
     return !isNaN(date.getTime());
   };
 
-  const setArrayParam = (
-    key: string,
-    value: string | string[]
-  ): void => {
+  const setArrayParam = (key: string, value: string | string[]): void => {
     if (Array.isArray(value)) {
       if (value.length > 0) {
         urlParams.set(key, value.join(','));
@@ -130,8 +123,7 @@ function transformBill(apiBill: ApiBill): EnhancedBill {
       (title: BillTitle) => title.as === 'ga' || title.as === 'gle'
     );
 
-    englishTitle =
-      enTitle?.showAs || apiBill.titles[0]?.showAs || englishTitle;
+    englishTitle = enTitle?.showAs || apiBill.titles[0]?.showAs || englishTitle;
     irishTitle = gaTitle?.showAs || irishTitle;
   } else if (apiBill.shortTitleEn) {
     englishTitle = apiBill.shortTitleEn;
@@ -193,7 +185,6 @@ export async function fetchBills(params: BillsApiParams = {}): Promise<{
     const data: BillsApiResponse = await response.json();
 
     let billList: ApiBill[] = [];
-
 
     if (data.results && 'legislation' in data.results) {
       billList = data.results.legislation;
@@ -273,12 +264,14 @@ export async function fetchBillTypes(): Promise<string[]> {
   }
 }
 
-
 export async function toggleBillFavourite(
   billId: string,
   isFavourite: boolean
 ): Promise<void> {
   try {
+    console.log(
+      `Dispatching server request to ${isFavourite ? 'favourite' : 'unfavourite'} bill: ${billId}`
+    );
     await new Promise(resolve => setTimeout(resolve, 300));
     return Promise.resolve();
   } catch (error) {
