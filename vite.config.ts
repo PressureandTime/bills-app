@@ -15,7 +15,26 @@ export default defineConfig({
     testTimeout: 5000,
     hookTimeout: 5000,
     coverage: {
-      enabled: false,
+      enabled: true,
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'e2e/',
+        'src/test/',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+        'src/vite-env.d.ts',
+        'src/main.tsx',
+        '**/types.ts',
+      ],
+      thresholds: {
+        global: {
+          branches: 70,
+          functions: 70,
+          lines: 70,
+          statements: 70,
+        },
+      },
     },
     silent: 'passed-only',
   },
