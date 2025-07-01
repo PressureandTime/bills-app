@@ -1,8 +1,3 @@
-/**
- * Modal component for displaying detailed bill information
- * Features tabbed interface for English and Irish language titles
- */
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -33,9 +28,6 @@ interface TabPanelProps {
   value: number;
 }
 
-/**
- * Tab Panel component for the modal tabs
- */
 function TabPanel({ children, value, index, ...other }: TabPanelProps) {
   return (
     <div
@@ -50,9 +42,6 @@ function TabPanel({ children, value, index, ...other }: TabPanelProps) {
   );
 }
 
-/**
- * Accessibility props for tabs
- */
 function a11yProps(index: number) {
   return {
     id: `bill-tab-${index}`,
@@ -60,9 +49,6 @@ function a11yProps(index: number) {
   };
 }
 
-/**
- * Bill Details Modal Component
- */
 export function BillDetailsModal({
   bill,
   open,
@@ -70,13 +56,13 @@ export function BillDetailsModal({
 }: BillDetailsModalProps) {
   const [tabValue, setTabValue] = useState(0);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const changeTab = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
   if (!bill) return null;
 
-  const sponsorDisplay = bill.sponsors?.[0]?.showAs || 'No sponsor information';
+  const sponsor = bill.sponsors?.[0]?.showAs || 'No sponsor info';
   const statusColor = getStatusColor(bill.status);
 
   return (
@@ -119,7 +105,6 @@ export function BillDetailsModal({
       <Divider />
 
       <DialogContent sx={{ px: 3, pt: 2, pb: 1 }}>
-        {/* Bill Overview */}
         <Stack spacing={2} sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Box sx={{ flex: 1, minWidth: 200 }}>
@@ -152,18 +137,17 @@ export function BillDetailsModal({
               <Typography variant="subtitle2">Sponsor</Typography>
             </Box>
             <Typography variant="body2" color="text.secondary">
-              {sponsorDisplay}
+              {sponsor}
             </Typography>
           </Box>
         </Stack>
 
         <Divider sx={{ my: 2 }} />
 
-        {/* Language Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs
             value={tabValue}
-            onChange={handleTabChange}
+            onChange={changeTab}
             aria-label="bill language tabs"
             variant="fullWidth"
           >
@@ -182,7 +166,6 @@ export function BillDetailsModal({
           </Tabs>
         </Box>
 
-        {/* English Title Tab */}
         <TabPanel value={tabValue} index={0}>
           <Box id="bill-details-description">
             <Typography variant="h6" gutterBottom color="primary">
@@ -197,13 +180,12 @@ export function BillDetailsModal({
                 color="text.secondary"
                 sx={{ mt: 2, display: 'block' }}
               >
-                This is the official English language title of the bill.
+                Official English title.
               </Typography>
             )}
           </Box>
         </TabPanel>
 
-        {/* Irish Title Tab */}
         <TabPanel value={tabValue} index={1}>
           <Box>
             <Typography variant="h6" gutterBottom color="primary">
@@ -220,12 +202,11 @@ export function BillDetailsModal({
               color="text.secondary"
               sx={{ mt: 2, display: 'block' }}
             >
-              Seo é teideal oifigiúil na Gaeilge don bhille seo.
+              Teideal oifigiúil Gaeilge.
             </Typography>
           </Box>
         </TabPanel>
 
-        {/* Additional Information */}
         {bill.uri && (
           <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
             <Typography variant="caption" color="text.secondary">
@@ -244,9 +225,6 @@ export function BillDetailsModal({
   );
 }
 
-/**
- * Helper function to get appropriate color for bill status
- */
 function getStatusColor(
   status: string
 ):

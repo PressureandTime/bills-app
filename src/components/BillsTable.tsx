@@ -1,8 +1,3 @@
-/**
- * Main Bills Table component with pagination, filtering, and favourites functionality
- * Uses Material UI DataGrid for professional table display
- */
-
 import React, {
   useState,
   useEffect,
@@ -10,167 +5,103 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import {
-  Box,
-  Typography,
-  Chip,
-  IconButton,
-  Tooltip,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Stack,
-  TextField,
-  Tabs,
-  Tab,
-  Card,
-  CardContent,
-} from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
-import type {
-  GridColDef,
-  GridRowParams,
-  GridPaginationModel,
-} from '@mui/x-data-grid';
-import {
-  Favorite as FavoriteIcon,
-  FavoriteBorder as FavoriteBorderIcon,
-  Visibility as VisibilityIcon,
-  FilterList as FilterIcon,
-} from '@mui/icons-material';
+import { Box, Alert, Card, CardContent } from '@mui/material';
+import type { GridRowParams } from '@mui/x-data-grid';
 import type { EnhancedBill, BillsFilter } from '../types/bills';
 import { fetchBills, fetchBillTypes } from '../services/billsApi';
 import { useFavourites } from '../hooks/useFavourites';
+import { useTableFilters } from '../hooks/useTableFilters';
+import { usePagination } from '../hooks/usePagination';
+import { useTabManagement } from '../hooks/useTabManagement';
 import { BillDetailsModal } from './BillDetailsModal';
-
-// Error Boundary Component for DataGrid
-class DataGridErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    console.error('DataGrid Error Boundary caught an error:', error);
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('DataGrid Error details:', { error, errorInfo });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <Alert severity="error" sx={{ m: 2 }}>
-          <Typography variant="h6">Data Grid Error</Typography>
-          <Typography variant="body2">
-            There was an issue loading the data grid. Please refresh the page.
-          </Typography>
-          {this.state.error && (
-            <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
-              Error: {this.state.error.message}
-            </Typography>
-          )}
-        </Alert>
-      );
-    }
-
-    return this.props.children;
-  }
-}
+import { BillsTableTabs } from './table/BillsTableTabs';
+import { BillsTableFilters } from './table/BillsTableFilters';
+import { BillsDataGrid, EmptyBillsState } from './table/BillsDataGrid';
+import { TabPanel } from './common/TabPanel';
 
 interface BillsTableProps {
   showFavouritesOnly?: boolean;
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel({ children, value, index }: TabPanelProps) {
-  return (
-    <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box>{children}</Box>}
-    </div>
-  );
-}
-
-/**
- * Bills Table Component
- */
 export function BillsTable({ showFavouritesOnly = false }: BillsTableProps) {
-  // Ref to prevent double API calls in React.StrictMode
   const mountedRef = useRef(false);
   const loadingRef = useRef(false);
 
-  // State management
   const [bills, setBills] = useState<EnhancedBill[]>([]);
-  const [loading, setLoading] = useState(true); // Start with loading true
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [availableBillTypes, setAvailableBillTypes] = useState<string[]>([]);
+  const [billTypes, setBillTypes] = useState<string[]>([]);
 
-  // Pagination and filtering state
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
-    page: 0,
-    pageSize: 25,
-  });
-  const [filter, setFilter] = useState<BillsFilter>({});
+  const { filter, updateFilter } = useTableFilters();
+  const {
+    paginationModel,
+    changePage: updatePagination,
+    goToFirstPage,
+  } = usePagination(0, 25, totalCount);
+  const { currentTab, changeTab: updateTab } = useTabManagement(
+    showFavouritesOnly ? 1 : 0
+  );
 
-  // Modal state
   const [selectedBill, setSelectedBill] = useState<EnhancedBill | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Tab state for main/favourites view
-  const [currentTab, setCurrentTab] = useState(showFavouritesOnly ? 1 : 0);
-
-  // Favourites hook
   const { toggleFavourite, isFavourite } = useFavourites();
 
-  // Load bill types on component mount
   useEffect(() => {
     if (mountedRef.current) {
       return;
     }
 
+    // get bill types for filter dropdown
     fetchBillTypes().then(types => {
-      setAvailableBillTypes(types);
+      setBillTypes(types);
     });
 
     mountedRef.current = true;
   }, []);
 
-  // Load bills data
+  // load bills from API
   const loadBills = useCallback(async () => {
-    // Prevent double API calls in StrictMode
-    if (loadingRef.current) {
-      return;
-    }
+    if (loadingRef.current) return;
 
     loadingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
+      const clientFilter = filter.searchTerm;
+
+      const mapBillTypeToSource = (billType?: string): string | undefined => {
+        if (!billType) return undefined;
+        switch (billType) {
+          case 'Public':
+            return 'Government';
+          case 'Private':
+            return 'Private Member';
+          default:
+            return undefined;
+        }
+      };
+
       const params = {
-        limit: paginationModel.pageSize,
-        skip: paginationModel.page * paginationModel.pageSize,
-        bill_type: filter.billType,
+        limit: clientFilter ? 500 : paginationModel.pageSize,
+        skip: clientFilter
+          ? 0
+          : paginationModel.page * paginationModel.pageSize,
+        bill_source: mapBillTypeToSource(filter.billType) || filter.billSource,
         bill_status: filter.status,
+        date_start: filter.dateStart,
+        date_end: filter.dateEnd,
+        member_id: filter.memberId,
+        bill_no: filter.billNumber,
+        bill_year: filter.billYear,
       };
 
       const { bills: fetchedBills, totalCount: fetchedTotalCount } =
         await fetchBills(params);
 
-      // Enhanced bills with favourite status
+      // add favourite status to bills
       const enhancedBills = fetchedBills.map(bill => ({
         ...bill,
         isFavourite: isFavourite(bill.billId),
@@ -180,7 +111,7 @@ export function BillsTable({ showFavouritesOnly = false }: BillsTableProps) {
       setTotalCount(fetchedTotalCount);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load bills');
-      console.error('Error loading bills:', err);
+      console.error('Load bills failed:', err);
     } finally {
       setLoading(false);
       loadingRef.current = false;
@@ -188,34 +119,100 @@ export function BillsTable({ showFavouritesOnly = false }: BillsTableProps) {
   }, [
     paginationModel.page,
     paginationModel.pageSize,
-    filter.billType,
     filter.status,
+    filter.billSource,
+    filter.dateStart,
+    filter.dateEnd,
+    filter.memberId,
+    filter.billNumber,
+    filter.billYear,
+    filter.billType,
+    filter.searchTerm,
     isFavourite,
   ]);
 
-  // Load bills when dependencies change
   useEffect(() => {
     if (currentTab === 0 && mountedRef.current) {
-      // Only load from API for "All Bills" tab
       loadBills();
     } else {
       if (currentTab === 1) {
-        setLoading(false); // Don't show loading for favourites tab
+        setLoading(false);
       }
     }
   }, [loadBills, currentTab]);
 
-  // Get favourite bills for the favourites tab
-  const favouriteBills = useMemo(() => {
-    return bills.filter(bill => isFavourite(bill.billId));
-  }, [bills, isFavourite]);
 
-  // Handle favourite toggle
-  const handleFavouriteToggle = useCallback(
+  const searchBill = useCallback((bill: EnhancedBill, searchTerm: string) => {
+    const term = searchTerm.toLowerCase().trim();
+    const englishTitle = bill.englishTitle?.toLowerCase() || '';
+    const irishTitle = bill.irishTitle?.toLowerCase() || '';
+    const billNo = bill.billNo?.toLowerCase() || '';
+    const billType = bill.billType?.toLowerCase() || '';
+    const sponsors =
+      bill.sponsors?.map(s => s.showAs?.toLowerCase() || '').join(' ') || '';
+    const status = bill.status?.toLowerCase() || '';
+
+    return (
+      englishTitle.includes(term) ||
+      irishTitle.includes(term) ||
+      billNo.includes(term) ||
+      billType.includes(term) ||
+      sponsors.includes(term) ||
+      status.includes(term)
+    );
+  }, []);
+
+  // filter favourite bills
+  const favouriteBills = useMemo(() => {
+    const baseFavourites = bills.filter(bill => isFavourite(bill.billId));
+
+    let result = baseFavourites;
+
+    if (filter.searchTerm) {
+      result = result.filter(bill => searchBill(bill, filter.searchTerm!));
+    }
+
+    return result;
+  }, [bills, isFavourite, filter.searchTerm, searchBill]);
+
+  const displayBills = useMemo(() => {
+    const clientFilter = filter.searchTerm;
+    let result = bills;
+
+    if (filter.searchTerm) {
+      result = result.filter(bill => searchBill(bill, filter.searchTerm!));
+    }
+
+    if (clientFilter) {
+      const startIndex = paginationModel.page * paginationModel.pageSize;
+      const endIndex = startIndex + paginationModel.pageSize;
+      return result.slice(startIndex, endIndex);
+    }
+
+    return result;
+  }, [
+    bills,
+    filter.searchTerm,
+    paginationModel.page,
+    paginationModel.pageSize,
+    searchBill,
+  ]);
+
+
+  const filteredCount = useMemo(() => {
+    let result = bills;
+
+    if (filter.searchTerm) {
+      result = result.filter(bill => searchBill(bill, filter.searchTerm!));
+    }
+
+    return result.length;
+  }, [bills, filter.searchTerm, searchBill]);
+
+  const toggleFav = useCallback(
     async (billId: string) => {
       try {
         await toggleFavourite(billId);
-        // Update the bills array to reflect the change
         setBills(prevBills =>
           prevBills.map(bill =>
             bill.billId === billId
@@ -224,273 +221,92 @@ export function BillsTable({ showFavouritesOnly = false }: BillsTableProps) {
           )
         );
       } catch (err) {
-        console.error('Failed to toggle favourite:', err);
+        console.error('Toggle favourite failed:', err);
       }
     },
     [toggleFavourite, isFavourite]
   );
 
-  // Handle row click to open modal
-  const handleRowClick = useCallback((params: GridRowParams) => {
+  const showDetails = useCallback((params: GridRowParams) => {
     setSelectedBill(params.row as EnhancedBill);
     setModalOpen(true);
   }, []);
 
-  // Handle filter changes
-  const handleFilterChange = useCallback((newFilter: Partial<BillsFilter>) => {
-    setFilter(prev => ({ ...prev, ...newFilter }));
-    setPaginationModel(prev => ({ ...prev, page: 0 })); // Reset to first page
-  }, []);
-
-  // Handle tab change
-  const handleTabChange = useCallback(
-    (_event: React.SyntheticEvent, newValue: number) => {
-      setCurrentTab(newValue);
+  const updateBillFilter = useCallback(
+    (newFilter: Partial<BillsFilter>) => {
+      updateFilter(newFilter);
+      goToFirstPage();
     },
-    []
+    [updateFilter, goToFirstPage]
   );
 
-  // Define table columns
-  const columns: GridColDef[] = [
-    {
-      field: 'billNo',
-      headerName: 'Bill Number',
-      width: 150,
-      sortable: true,
-    },
-    {
-      field: 'billType',
-      headerName: 'Bill Type',
-      width: 180,
-      sortable: true,
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 150,
-      sortable: true,
-      renderCell: params => (
-        <Chip
-          label={params.value}
-          size="small"
-          variant="outlined"
-          color="primary"
-        />
-      ),
-    },
-    {
-      field: 'sponsors',
-      headerName: 'Sponsor',
-      width: 200,
-      sortable: false,
-      valueGetter: (_value, row) =>
-        (row as EnhancedBill).sponsors?.[0]?.showAs || 'No sponsor',
-    },
-    {
-      field: 'englishTitle',
-      headerName: 'Title',
-      width: 300,
-      sortable: false,
-      renderCell: params => (
-        <Tooltip title={params.value || 'No title available'} arrow>
-          <Typography
-            variant="body2"
-            sx={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {params.value || 'No title available'}
-          </Typography>
-        </Tooltip>
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 120,
-      sortable: false,
-      renderCell: params => (
-        <Stack direction="row" spacing={1}>
-          <Tooltip title="View Details" arrow>
-            <IconButton
-              size="small"
-              onClick={e => {
-                e.stopPropagation();
-                setSelectedBill(params.row as EnhancedBill);
-                setModalOpen(true);
-              }}
-            >
-              <VisibilityIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip
-            title={
-              isFavourite(params.row.billId)
-                ? 'Remove from Favourites'
-                : 'Add to Favourites'
-            }
-            arrow
-          >
-            <IconButton
-              size="small"
-              onClick={e => {
-                e.stopPropagation();
-                handleFavouriteToggle(params.row.billId);
-              }}
-              color={isFavourite(params.row.billId) ? 'error' : 'default'}
-            >
-              {isFavourite(params.row.billId) ? (
-                <FavoriteIcon fontSize="small" />
-              ) : (
-                <FavoriteBorderIcon fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    },
-  ];
+  const changePage = updatePagination;
+  const changeTab = updateTab;
+
+  const clientFilter = filter.searchTerm;
+  const paginationMode = clientFilter ? 'client' : 'server';
+
+  const openModal = useCallback((bill: EnhancedBill) => {
+    setSelectedBill(bill);
+    setModalOpen(true);
+  }, []);
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
-      {/* Header with tabs */}
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ pb: 2 }}>
-          <Tabs
-            value={currentTab}
-            onChange={handleTabChange}
-            aria-label="bills tabs"
-            sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
-          >
-            <Tab label="All Bills" />
-            <Tab label={`Favourites (${favouriteBills.length})`} />
-          </Tabs>
+          <BillsTableTabs
+            currentTab={currentTab}
+            onTabChange={changeTab}
+            favouritesCount={favouriteBills.length}
+          />
 
-          {/* Filters - only show for "All Bills" tab */}
-          {currentTab === 0 && (
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={2}
-              alignItems="center"
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <FilterIcon color="action" />
-                <Typography variant="body2" color="text.secondary">
-                  Filters:
-                </Typography>
-              </Box>
-
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Bill Type</InputLabel>
-                <Select
-                  value={filter.billType || ''}
-                  label="Bill Type"
-                  onChange={e =>
-                    handleFilterChange({
-                      billType: e.target.value || undefined,
-                    })
-                  }
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  {availableBillTypes.map(type => (
-                    <MenuItem key={type} value={type}>
-                      {type}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                size="small"
-                label="Search"
-                placeholder="Search bills..."
-                value={filter.searchTerm || ''}
-                onChange={e =>
-                  handleFilterChange({
-                    searchTerm: e.target.value || undefined,
-                  })
-                }
-                sx={{ minWidth: 200 }}
-              />
-            </Stack>
-          )}
+          <BillsTableFilters
+            filter={filter}
+            availableBillTypes={billTypes}
+            onFilterChange={updateBillFilter}
+            visible={currentTab === 0}
+          />
         </CardContent>
       </Card>
 
-      {/* Error display */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* Data Grid Tabs */}
       <TabPanel value={currentTab} index={0}>
-        {/* All Bills DataGrid */}
-        <DataGridErrorBoundary>
-          <DataGrid
-            rows={bills}
-            columns={columns}
-            getRowId={row => row.billId}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            rowCount={totalCount}
-            paginationMode="server"
-            loading={loading}
-            onRowClick={handleRowClick}
-            sx={{
-              height: 600,
-              '& .MuiDataGrid-row:hover': {
-                cursor: 'pointer',
-              },
-            }}
-            initialState={{
-              pagination: {
-                paginationModel: { pageSize: 25 },
-              },
-            }}
-            pageSizeOptions={[10, 25, 50]}
-            disableRowSelectionOnClick
-          />
-        </DataGridErrorBoundary>
+        <BillsDataGrid
+          bills={displayBills}
+          loading={loading}
+          paginationModel={paginationModel}
+          paginationMode={paginationMode}
+          rowCount={paginationMode === 'server' ? totalCount : filteredCount}
+          onPaginationModelChange={changePage}
+          onRowClick={showDetails}
+          onFavouriteToggle={toggleFav}
+          onViewDetails={openModal}
+          isFavourite={isFavourite}
+          testId="bills-table"
+        />
       </TabPanel>
 
       <TabPanel value={currentTab} index={1}>
-        {/* Favourites DataGrid */}
-        <DataGridErrorBoundary>
-          <DataGrid
-            rows={favouriteBills}
-            columns={columns}
-            getRowId={row => row.billId}
-            onRowClick={handleRowClick}
-            sx={{
-              height: 600,
-              '& .MuiDataGrid-row:hover': {
-                cursor: 'pointer',
-              },
-            }}
-            initialState={{
-              pagination: {
-                paginationModel: { pageSize: 25 },
-              },
-            }}
-            pageSizeOptions={[10, 25, 50]}
-            disableRowSelectionOnClick
-          />
-        </DataGridErrorBoundary>
+        <BillsDataGrid
+          bills={favouriteBills}
+          loading={false}
+          onRowClick={showDetails}
+          onFavouriteToggle={toggleFav}
+          onViewDetails={openModal}
+          isFavourite={isFavourite}
+          showPagination={false}
+        />
         {favouriteBills.length === 0 && !loading && (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography variant="body1" color="text.secondary">
-              No favourite bills yet. Click the heart icon on any bill to add it
-              to your favourites.
-            </Typography>
-          </Box>
+          <EmptyBillsState message="No favourite bills yet. Click the heart icon on any bill to add it to your favourites." />
         )}
       </TabPanel>
 
-      {/* Bill Details Modal */}
       <BillDetailsModal
         bill={selectedBill}
         open={modalOpen}

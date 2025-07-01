@@ -1,8 +1,3 @@
-/**
- * TypeScript types for the Irish Oireachtas Bills API
- * Based on the API documentation at https://api.oireachtas.ie/
- */
-
 export interface BillTitle {
   as: string;
   showAs: string;
@@ -24,7 +19,6 @@ export interface BillUri {
   uri: string;
 }
 
-// Raw API response bill structure (what we actually get from the API)
 export interface ApiBill {
   billNo: string;
   billType: string;
@@ -39,10 +33,9 @@ export interface ApiBill {
   shortTitleGa?: string;
   longTitleEn?: string;
   longTitleGa?: string;
-  [key: string]: unknown; // Allow for additional fields from API
+  [key: string]: unknown;
 }
 
-// Our internal bill structure with required billId
 export interface Bill {
   billNo: string;
   billType: string;
@@ -96,6 +89,12 @@ export interface BillsFilter {
   billType?: string;
   status?: string;
   searchTerm?: string;
+  billSource?: string;
+  dateStart?: string;
+  dateEnd?: string;
+  memberId?: string;
+  billNumber?: string;
+  billYear?: string;
 }
 
 export interface BillDetailsModalProps {
@@ -126,10 +125,16 @@ export interface PaginationConfig {
 export interface BillsApiParams {
   limit?: number;
   skip?: number;
-  bill_type?: string;
   bill_status?: string;
-  member_id?: string;
-  chamber?: string;
+  bill_source?: string | string[];
   date_start?: string;
   date_end?: string;
+  member_id?: string;
+  bill_no?: string;
+  bill_year?: string;
+  chamber_id?: string;
+  act_year?: string;
+  act_no?: string;
+  last_updated?: string;
+  lang?: string;
 }

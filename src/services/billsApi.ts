@@ -1,7 +1,3 @@
-/**
- * API service for interacting with the Irish Oireachtas Bills API
- * Handles data fetching, error handling, and data transformation
- */
 
 import type {
   BillsApiResponse,
@@ -13,6 +9,7 @@ import type {
   BillTitle,
 } from '../types/bills';
 
+
 const API_CONFIG: ApiConfig = {
   baseUrl: 'https://api.oireachtas.ie/v1/legislation',
   limit: 25,
@@ -22,9 +19,6 @@ const API_CONFIG: ApiConfig = {
   },
 };
 
-/**
- * Custom error class for API-related errors
- */
 export class BillsApiError extends Error {
   public status?: number;
   public response?: Response;
@@ -37,64 +31,119 @@ export class BillsApiError extends Error {
   }
 }
 
-/**
- * Builds URL search parameters for the API request
- */
-function buildUrlParams(params: BillsApiParams): URLSearchParams {
+function buildParams(params: BillsApiParams): URLSearchParams {
   const urlParams = new URLSearchParams();
 
-  // Add default parameters
+
   Object.entries(API_CONFIG.defaultParams).forEach(([key, value]) => {
     urlParams.set(key, value);
   });
 
-  // Add custom parameters
+
+  const isValidDate = (dateString: string): boolean => {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(dateString)) return false;
+    const date = new Date(dateString);
+    return !isNaN(date.getTime());
+  };
+
+  const setArrayParam = (
+    key: string,
+    value: string | string[]
+  ): void => {
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        urlParams.set(key, value.join(','));
+      }
+    } else {
+      urlParams.set(key, value);
+    }
+  };
+
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      urlParams.set(key, value.toString());
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+
+    if (key === 'bill_status' || key === 'bill_source') {
+      setArrayParam(key, value as string | string[]);
+      return;
+    }
+
+    if (key === 'date_start' || key === 'date_end' || key === 'last_updated') {
+      const dateValue = value.toString();
+      if (isValidDate(dateValue)) {
+        urlParams.set(key, dateValue);
+      } else {
+        console.warn(`Bad date: ${key}=${dateValue}`);
+      }
+      return;
+    }
+
+    if (
+      key === 'limit' ||
+      key === 'skip' ||
+      key === 'member_id' ||
+      key === 'bill_no' ||
+      key === 'bill_year' ||
+      key === 'chamber_id' ||
+      key === 'act_year' ||
+      key === 'act_no'
+    ) {
+      const numValue =
+        typeof value === 'number' ? value : parseInt(value.toString(), 10);
+      if (!isNaN(numValue)) {
+        urlParams.set(key, numValue.toString());
+      } else {
+        console.warn(`Bad number: ${key}=${value}`);
+      }
+      return;
+    }
+
+    const stringValue = value.toString().trim();
+    if (stringValue) {
+      urlParams.set(key, stringValue);
     }
   });
 
   return urlParams;
 }
 
-/**
- * Transforms API bill data to enhanced bill format with language titles
- */
-function transformBillData(apiBill: ApiBill): EnhancedBill {
-  // Generate billId from available fields since API doesn't provide it
+function transformBill(apiBill: ApiBill): EnhancedBill {
+  if (!apiBill) {
+    throw new BillsApiError('Bill data is null');
+  }
+
   const billId =
     apiBill.uri ||
     `${apiBill.billYear || 'unknown'}-${apiBill.billNo || 'unknown'}`;
 
-  // Extract English and Irish titles - handle multiple title formats
+  // default titles
   let englishTitle = 'No title available';
   let irishTitle = 'Níl teideal ar fáil';
 
   if (apiBill.titles && Array.isArray(apiBill.titles)) {
-    const englishTitleObj = apiBill.titles.find(
+    const enTitle = apiBill.titles.find(
       (title: BillTitle) => title.as === 'en' || title.as === 'eng'
     );
-    const irishTitleObj = apiBill.titles.find(
+    const gaTitle = apiBill.titles.find(
       (title: BillTitle) => title.as === 'ga' || title.as === 'gle'
     );
 
     englishTitle =
-      englishTitleObj?.showAs || apiBill.titles[0]?.showAs || englishTitle;
-    irishTitle = irishTitleObj?.showAs || irishTitle;
+      enTitle?.showAs || apiBill.titles[0]?.showAs || englishTitle;
+    irishTitle = gaTitle?.showAs || irishTitle;
   } else if (apiBill.shortTitleEn) {
     englishTitle = apiBill.shortTitleEn;
     irishTitle = apiBill.shortTitleGa || irishTitle;
   } else if (apiBill.longTitleEn) {
-    // Clean HTML tags from long title
     englishTitle = apiBill.longTitleEn.replace(/<[^>]*>/g, '').trim();
     irishTitle = apiBill.longTitleGa
       ? apiBill.longTitleGa.replace(/<[^>]*>/g, '').trim()
       : irishTitle;
   }
 
-  // Create standardized enhanced bill object
-  const enhancedBill: EnhancedBill = {
+  const bill: EnhancedBill = {
     billId,
     billNo: apiBill.billNo || 'Unknown',
     billType: apiBill.billType || 'Unknown',
@@ -109,26 +158,21 @@ function transformBillData(apiBill: ApiBill): EnhancedBill {
     irishTitle,
   };
 
-  return enhancedBill;
+  return bill;
 }
 
-/**
- * Fetches bills data from the Irish Oireachtas API
- */
 export async function fetchBills(params: BillsApiParams = {}): Promise<{
   bills: EnhancedBill[];
   totalCount: number;
   resultCount: number;
 }> {
   try {
-    const urlParams = buildUrlParams({
+    const urlParams = buildParams({
       limit: API_CONFIG.limit,
       ...params,
     });
 
     const url = `${API_CONFIG.baseUrl}?${urlParams.toString()}`;
-
-    console.log('Fetching bills from:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -150,48 +194,61 @@ export async function fetchBills(params: BillsApiParams = {}): Promise<{
 
     let billList: ApiBill[] = [];
 
+
     if (data.results && 'legislation' in data.results) {
       billList = data.results.legislation;
     } else if (data.results && Array.isArray(data.results)) {
-      billList = (data.results as BillResult[]).map(result => result.bill);
+      billList = (data.results as BillResult[])
+        .map(result => result.bill)
+        .filter(bill => bill != null);
     } else {
-      throw new BillsApiError('Invalid API response format');
+      throw new BillsApiError('Bad response format');
     }
 
-    if (!billList) {
-      throw new BillsApiError(
-        'Invalid API response format: bill list not found'
-      );
+    if (!billList || !Array.isArray(billList)) {
+      throw new BillsApiError('Bill list not found');
     }
 
-    const transformedBills = billList.map(transformBillData);
+    const validBills = billList.filter(bill => bill != null);
+    const transformedBills = validBills.map(transformBill);
+    const totalCount =
+      data.head?.counts?.totalCount ||
+      data.head?.counts?.resultCount ||
+      transformedBills.length;
+    const resultCount =
+      data.head?.counts?.resultCount || transformedBills.length;
 
     return {
       bills: transformedBills,
-      totalCount: data.head?.counts?.totalCount || transformedBills.length,
-      resultCount: data.head?.counts?.resultCount || transformedBills.length,
+      totalCount,
+      resultCount,
     };
   } catch (error) {
-    console.error('Error fetching bills:', error);
+    console.error('fetchBills error:', error);
 
     if (error instanceof BillsApiError) {
       throw error;
     }
 
-    // Network or other errors
     throw new BillsApiError(
       `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
 
-/**
- * Fetches available bill types for filtering
- */
 export async function fetchBillTypes(): Promise<string[]> {
   try {
-    // For now, return common bill types based on API documentation
-    // In a real application, you might fetch this dynamically
+    const { bills } = await fetchBills({ limit: 200 });
+
+    const uniqueTypes = [...new Set(bills.map(bill => bill.billType))]
+      .filter(type => type && type.trim() !== '' && type !== 'Unknown')
+      .sort();
+
+    // fallback to hardcoded list if no types found
+    if (uniqueTypes.length > 0) {
+      return uniqueTypes;
+    }
+
     return [
       'Public Bill',
       'Private Bill',
@@ -202,35 +259,30 @@ export async function fetchBillTypes(): Promise<string[]> {
       'Committee Bill',
     ];
   } catch (error) {
-    console.error('Error fetching bill types:', error);
-    return [];
+    console.error('fetchBillTypes error:', error);
+
+    return [
+      'Public Bill',
+      'Private Bill',
+      'Private Members Bill',
+      'Money Bill',
+      'Consolidation Bill',
+      'Government Bill',
+      'Committee Bill',
+    ];
   }
 }
 
-/**
- * Mock function to simulate favouriting a bill
- * In a real application, this would send a request to the backend
- */
+
 export async function toggleBillFavourite(
   billId: string,
   isFavourite: boolean
 ): Promise<void> {
   try {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 300));
-
-    const action = isFavourite ? 'favourited' : 'unfavourited';
-    console.log(`🔖 Bill ${billId} has been ${action} (mocked API call)`);
-
-    // In a real application, you would make an actual API call here:
-    // const response = await fetch(`/api/bills/${billId}/favourite`, {
-    //   method: isFavourite ? 'POST' : 'DELETE',
-    //   headers: { 'Content-Type': 'application/json' },
-    // });
-
     return Promise.resolve();
   } catch (error) {
-    console.error('Error toggling bill favourite:', error);
+    console.error('toggleFavourite error:', error);
     throw new BillsApiError(
       `Failed to ${isFavourite ? 'favourite' : 'unfavourite'} bill: ${billId}`
     );
