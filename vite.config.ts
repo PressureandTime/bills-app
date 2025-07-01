@@ -16,7 +16,7 @@ export default defineConfig({
     hookTimeout: 5000,
     coverage: {
       enabled: true,
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'json-summary', 'html'],
       exclude: [
         'node_modules/',
         'e2e/',

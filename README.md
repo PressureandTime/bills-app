@@ -1,7 +1,6 @@
 # Irish Bills Viewer
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/PressureandTime/irish-bills-viewer/ci.yml?branch=main)](https://github.com/PressureandTime/irish-bills-viewer/actions)
-[![Coverage Status](https://img.shields.io/codecov/c/github/PressureandTime/irish-bills-viewer)](https://codecov.io/gh/PressureandTime/irish-bills-viewer)
+[![Coverage](https://img.shields.io/badge/Coverage-10%25-red)](./coverage/index.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18.3.1-blue?logo=react)](https://reactjs.org/)
