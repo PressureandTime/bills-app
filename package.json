@@ -1,9 +1,16 @@
 {
   "name": "irish-bills-viewer",
   "description": "Irish Bills Information Viewer",
-  "private": true,
   "version": "1.0.0",
   "type": "module",
+  "homepage": "https://github.com/PressureandTime/irish-bills-viewer#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PressureandTime/irish-bills-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PressureandTime/irish-bills-viewer/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -15,6 +22,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "coverage:badge": "npm run test:coverage -- --run && node -p \"const fs = require('fs'); try { const coverage = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json', 'utf8')); 'Coverage: ' + Math.round(coverage.total.lines.pct) + '%'; } catch (e) { 'Coverage: N/A'; }\"",
     "setup:e2e": "npx playwright install --with-deps",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -57,8 +65,14 @@
     "react",
     "typescript",
     "material-ui",
-    "frontend-assessment",
-    "irish-legislation"
+    "vite",
+    "vitest",
+    "playwright",
+    "oireachtas",
+    "irish-legislation",
+    "bills-viewer",
+    "government-data",
+    "frontend-assessment"
   ],
   "author": "Frontend Developer",
   "license": "MIT"

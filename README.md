@@ -1,5 +1,15 @@
 # Irish Bills Viewer
 
+[![Build Status](https://github.com/yourusername/irish-bills-viewer/workflows/CI/badge.svg)](https://github.com/yourusername/irish-bills-viewer/actions)
+[![Coverage Status](https://img.shields.io/codecov/c/github/yourusername/irish-bills-viewer)](https://codecov.io/gh/yourusername/irish-bills-viewer)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18.3.1-blue?logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6.2-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Material-UI](https://img.shields.io/badge/Material--UI-6.1.10-blue?logo=mui)](https://mui.com/)
+[![Vite](https://img.shields.io/badge/Vite-6.0.1-purple?logo=vite)](https://vitejs.dev/)
+[![Tests](https://img.shields.io/badge/Tests-Vitest%20%2B%20Playwright-green)](https://github.com/yourusername/irish-bills-viewer/actions)
+
 A React TypeScript application for browsing Irish legislation bills with search and filtering capabilities.
 
 ## Features
