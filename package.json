@@ -1,6 +1,6 @@
 {
   "name": "irish-bills-viewer",
-  "description": "Frontend Engineer Assessment - Irish Bills Information Viewer",
+  "description": "Irish Bills Information Viewer",
   "private": true,
   "version": "1.0.0",
   "type": "module",
